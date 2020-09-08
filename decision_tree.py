@@ -16,7 +16,7 @@ from sklearn.linear_model import Lasso, LogisticRegression
 from sklearn.feature_selection import SelectFromModel
 from sklearn.preprocessing import StandardScaler
 from random import randrange
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.utils import resample
 from skpp import ProjectionPursuitRegressor
 from sklearn import datasets, ensemble
@@ -28,7 +28,7 @@ def bootstrap(data, number):
         b = resample(data, replace=True, n_samples=int(0.1*len(data)))
         boot.append(b)
     return boot
-    
+'''    
 def test_split(index, value, dataset):
     left, right = list(), list()
     for row in dataset:
@@ -215,7 +215,7 @@ def decision_tree(train, test, max_depth, min_size, dep):
         depths.append(dep)
         dep = 0
     return(predictions, depths)
-
+'''
 def base_features(train_features,train_labels):
     # pymfe
     #mfe = MFE()
@@ -239,7 +239,7 @@ def NN_1(train_features,train_labels,test_features):
     #dictionary = dict(zip_iterator)
     return dist
     
-def get_features(train_features, train_labels, test_features, test_labels):
+def get_features(train_features, train_labels, test_features):
     var = []
     dist_edge = []
     meta_features = np.empty(shape=(len(test_features),5))
@@ -278,7 +278,8 @@ def MARS(train_features,train_labels, test_features):
     return distance_edge
     
 def CART(X_train, y_train, X_test):
-    estimator = DecisionTreeClassifier(max_leaf_nodes=20, random_state=0)
+    #estimator = DecisionTreeClassifier(max_leaf_nodes=20, random_state=0)
+    estimator = DecisionTreeRegressor(max_leaf_nodes=20, random_state=0)
     estimator.fit(X_train, y_train)
     
     # The decision estimator has an attribute called tree_  which stores the entire
@@ -414,28 +415,18 @@ def Lasso():
     print("lasso best parameters:", gridlasso.best_params_)
 
 '''
-dataset = [[2.771244718,1.784783929,0],
-    [1.728571309,1.169761413,0],
-    [3.678319846,2.81281357,0],
-    [3.961043357,2.61995032,0],
-    [2.999208922,2.209014212,0],
-    [7.497545867,3.162953546,1],
-    [9.00220326,3.339047188,1],
-    [7.444542326,0.476683375,1],
-    [10.12493903,3.234550982,1],
-    [6.642287351,3.319983761,1]]
 tree = build_tree(dataset, 1, 1)
-print_tree(tree)
+
 '''
-# Random Forest
-data = pd.read_csv("S:/Job/Time Series analysis/Task3/Concrete_Data_new.csv")
+
+data_orig = pd.read_csv("S:/Job/Time Series analysis/Task3/Concrete_Data_new.csv")
 # Implement boot strapping
-data = data.values
-data = data[:int(0.9*len(data)),:]
+data_orig = data_orig.values
+data = data_orig[:int(0.9*len(data_orig)),:]
 bootstrapped_samples = bootstrap(data, number=100)
 print("number of bootstrapped samples",len(bootstrapped_samples))
-
-dt = []
+# Training
+dt = []         #stores the decision trees for each bootstrap
 for index in range(len(bootstrapped_samples)):
     data = bootstrapped_samples[index]
     feature = data[:,0:7]
@@ -481,57 +472,54 @@ for index in range(len(bootstrapped_samples)):
      
     label = np.asarray(label, dtype='float64')
     label = label.reshape(len(label),1)
-    meta_features = get_features(train_features, train_labels, test_features, test_labels)  
+    meta_features = get_features(train_features, train_labels, test_features)  
     clf = DecisionTreeClassifier()
     dt.append(clf.fit(meta_features,label))
     
-    #Predict the response for test dataset
-    y_pred = clf.predict(meta_features[0].reshape(1,-1))
-    
+        
     '''
     # Random Noise
     noise = np.random.normal(0,1,(1030,9))
     data = data + noise
-     
-    # CART
-    clf = tree.DecisionTreeRegressor()
-    clf = clf.fit(train_features,train_labels)
-    pred = clf.predict(test_features)
-    pred,depth = decision_tree(train_features[1:100,:],test_features[1:10,:],15,10,0)
-    #depth = clf.get_depth()
-    clf.get_n_leaves()
-    dec_paths = clf.decision_path(test_features)
-    # Main
-    meta_features = get_features(train_features,train_labels, test_features, test_labels)
     '''
+    
 # Testing
-prediction=[]
+prediction = 0.0
+predicted_values = []
 pred_per_dt = []
 error = []
-test_set = data[int(0.9*len(data)):,:]
+test_set = data_orig[int(0.9*len(data_orig)):,:]
 l = test_set[:,8]
 train_features, test_features, train_labels, test_labels = train_test_split(test_set, l, test_size = 0.25, random_state = 42)
-features = get_features(train_features, train_labels, test_features, test_labels) 
+features = get_features(train_features, train_labels, test_features)
 print("number of decision trees", len(dt)) 
-for i in range(len(dt)):
-    pred = dt[i].predict(features)
-    pred = np.asarray(pred,dtype='int64')
-    count = np.bincount(pred)
-    predictor_label = np.argmax(count)
-    if (predictor_label==0):
-        prediction = PPR(train_features, train_labels,test_features)  
-    elif(predictor_label==1):
-        prediction = get_SVR(train_features, train_labels,test_features)
-    elif(predictor_label==2):
-         prediction = RandomForest(train_features, train_labels,test_features)
-    elif(predictor_label==3):
-         prediction = GB(train_features, train_labels,test_features)
-    error.append(mean_squared_error(test_labels, prediction))      
-            
-    pred_per_dt.append(sum(prediction)/len(prediction))
-
-mean_error = sum(error)/len(error)
-output = sum(pred_per_dt)/len(pred_per_dt)    
-print("Predicted value", output, "mean square error",mean_error)   
+# Outer loop loops over all the test set features
+for j in range(len(test_features)):
+    print(j)
+    prediction = 0.0
+    # Inner loop predicts the output for each decision tree and then averages all the outputs
+    for i in range(len(dt)):
+        pred = dt[i].predict(features[j].reshape(1,-1))
+        pred = np.asarray(pred,dtype='int64')
+        count = np.bincount(pred)
+        predictor_label = np.argmax(count)
+        if (predictor_label==0):
+            prediction += PPR(train_features, train_labels,test_features[j].reshape(1,-1))  
+        elif(predictor_label==1):
+            prediction += get_SVR(train_features, train_labels,test_features[j].reshape(1,-1))
+        elif(predictor_label==2):
+             prediction += RandomForest(train_features, train_labels,test_features[j].reshape(1,-1))
+        elif(predictor_label==3):
+             prediction += GB(train_features, train_labels,test_features[j].reshape(1,-1))
+        #error.append(mean_squared_error(test_labels[0], prediction[0]))      
+    predicted_values.append(prediction/len(dt))           
+   #pred_per_dt.append(sum(prediction)/len(prediction))
+mse = mean_squared_error(test_labels, predicted_values)
+std = np.asarray(predicted_values).std()
+pred_ppr = PPR(train_features, train_labels,test_features)
+pred_svr = get_SVR(train_features, train_labels,test_features)
+pred_rf = RandomForest(train_features, train_labels,test_features)
+pred_gb = GB(train_features, train_labels,test_features)
+print("average error",mse)   
         
         
