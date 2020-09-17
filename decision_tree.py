@@ -388,7 +388,7 @@ def RandomForest(train_features,train_labels,test_features):
     return rf_predict
 
 def GB(train_features, train_labels,test_features):
-    #GB
+    # Gradient Boosting
     reg = ensemble.GradientBoostingRegressor()
     reg.fit(train_features,train_labels)
     gb_predict = reg.predict(test_features)
