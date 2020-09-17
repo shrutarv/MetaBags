@@ -22,12 +22,6 @@ from skpp import ProjectionPursuitRegressor
 from sklearn import datasets, ensemble
 from sklearn.metrics import mean_squared_error
 
-def bootstrap(data, number):
-    boot = []
-    for i in range(number):
-        b = resample(data, replace=True, n_samples=int(0.1*len(data)))
-        boot.append(b)
-    return boot
 '''    
 def test_split(index, value, dataset):
     left, right = list(), list()
@@ -216,18 +210,23 @@ def decision_tree(train, test, max_depth, min_size, dep):
         dep = 0
     return(predictions, depths)
 '''
-def base_features(train_features,train_labels):
+def bootstrap(data, number):
+    boot = []
+    for i in range(number):
+        b = resample(data, replace=True, n_samples=int(0.1*len(data)))
+        boot.append(b)
+    return boot
+
+def base_features(train_features,train_labels, test_features):
     # pymfe
     #mfe = MFE()
-    mfe = MFE(features=["tree_shape", "tree_depth"])
+    mfe = MFE(features=["leaves","nodes","tree_shape", "tree_depth"])
     mfe.fit(train_features, train_labels)
     ft = mfe.extract()
     #print(ft)
-    meta_feature_names = ft[0]
-    meta_feature_values = ft[1]
-    zip_iterator = zip(meta_feature_names, meta_feature_values)
-    dictionary = dict(zip_iterator)
-    return dictionary
+    base = np.transpose(np.repeat(np.reshape(ft[1],(len(ft[1]),1)),len(test_features), axis=1))
+  
+    return base
 
 # landmarker
 def NN_1(train_features,train_labels,test_features):
@@ -243,7 +242,7 @@ def get_features(train_features, train_labels, test_features):
     var = []
     dist_edge = []
     meta_features = np.empty(shape=(len(test_features),5))
-    bf = base_features(train_features,train_labels)
+    bf = base_features(train_features,train_labels,test_features)
     dist = NN_1(train_features,train_labels,test_features)
     depth, num_example, sample = CART(train_features,train_labels, test_features)
     for i in range(len(sample)):
@@ -260,7 +259,7 @@ def get_features(train_features, train_labels, test_features):
     var = var.reshape(len(depth),1)
     dist_edge = np.asarray(dist_edge, dtype='float64')
     dist_edge = dist_edge.reshape(len(depth),1)
-    meta_features = np.concatenate((depth, num_example, dist, var, dist_edge), axis=1)
+    meta_features = np.concatenate((depth, num_example, dist, var, dist_edge,bf), axis=1)
     dist_edge = np.asarray(dist_edge)
     #dic = {"Depth":depth, "number of samples":num_example, "variance":var, "dist to nearest edge":dist_edge, "distance to nearest neighbour":dist}
     #dic.update(bf)
@@ -419,7 +418,7 @@ tree = build_tree(dataset, 1, 1)
 
 '''
 
-data_orig = pd.read_csv("S:/Job/Time Series analysis/Task3/Concrete_Data_new.csv")
+data_orig = pd.read_csv("S:/Job/Time Series analysis/Task3/2dplanes.csv")
 # Implement boot strapping
 data_orig = data_orig.values
 data = data_orig[:int(0.9*len(data_orig)),:]
@@ -502,6 +501,8 @@ for j in range(len(test_features)):
         pred = dt[i].predict(features[j].reshape(1,-1))
         pred = np.asarray(pred,dtype='int64')
         count = np.bincount(pred)
+        # The best predictor is choosed. The predictions from them are summed and
+        # appended in prediction variable
         predictor_label = np.argmax(count)
         if (predictor_label==0):
             prediction += PPR(train_features, train_labels,test_features[j].reshape(1,-1))  
@@ -516,10 +517,15 @@ for j in range(len(test_features)):
    #pred_per_dt.append(sum(prediction)/len(prediction))
 mse = mean_squared_error(test_labels, predicted_values)
 std = np.asarray(predicted_values).std()
+# Base Learners
 pred_ppr = PPR(train_features, train_labels,test_features)
+mse_ppr = mean_squared_error(test_labels, pred_ppr)
 pred_svr = get_SVR(train_features, train_labels,test_features)
+mse_ppr = mean_squared_error(test_labels, pred_svr)
 pred_rf = RandomForest(train_features, train_labels,test_features)
+mse_ppr = mean_squared_error(test_labels, pred_rf)
 pred_gb = GB(train_features, train_labels,test_features)
+mse_ppr = mean_squared_error(test_labels, pred_gb)
 print("average error",mse)   
-        
+ 
         
