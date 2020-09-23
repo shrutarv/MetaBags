@@ -217,15 +217,15 @@ def bootstrap(data, number):
         boot.append(b)
     return boot
 
-def base_features(train_features,train_labels, test_features):
+def base_features(test_features):
     # pymfe
-    #mfe = MFE()
+    '''
     mfe = MFE(features=["leaves","nodes","tree_shape", "tree_depth"])
     mfe.fit(train_features, train_labels)
     ft = mfe.extract()
-    #print(ft)
     base = np.transpose(np.repeat(np.reshape(ft[1],(len(ft[1]),1)),len(test_features), axis=1))
-  
+    '''
+    base = test_features
     return base
 
 # landmarker
@@ -242,7 +242,7 @@ def get_features(train_features, train_labels, test_features):
     var = []
     dist_edge = []
     meta_features = np.empty(shape=(len(test_features),5))
-    bf = base_features(train_features,train_labels,test_features)
+    bf = test_features
     dist = NN_1(train_features,train_labels,test_features)
     depth, num_example, sample = CART(train_features,train_labels, test_features)
     for i in range(len(sample)):
@@ -417,8 +417,12 @@ def Lasso():
 tree = build_tree(dataset, 1, 1)
 
 '''
+#################################################################################
+######################################### MAIN ##################################
+#################################################################################
 
-data_orig = pd.read_csv("S:/Job/Time Series analysis/Task3/2dplanes.csv")
+# Load the data. The below algorithm assumes that labels column should be the last one
+data_orig = pd.read_csv("S:/Job/Time Series analysis/Task3/puma32H.csv")
 # Implement boot strapping
 data_orig = data_orig.values
 data = data_orig[:int(0.9*len(data_orig)),:]
@@ -427,15 +431,17 @@ print("number of bootstrapped samples",len(bootstrapped_samples))
 # Training
 dt = []         #stores the decision trees for each bootstrap
 for index in range(len(bootstrapped_samples)):
+    print("bootstrap training sample"+ str(index))
     data = bootstrapped_samples[index]
-    feature = data[:,0:7]
-    labels = data[:,8]
+    feature = data[:,0:(data.shape[1]-1)]
+    labels = data[:,data.shape[1]-1]
     train_features, test_features, train_labels, test_labels = train_test_split(feature, labels, test_size = 0.25, random_state = 42)
     n_folds = 5
     max_depth = 15
     min_size = 10
     dep = 0
     #scores, dep = evaluate_algorithm(data, decision_tree, n_folds, dep, max_depth, min_size)
+    # Below code till line 471 is used to get the labels for each bootstrapped sample
     label = []
     # Random Forest
     rf = RandomForestRegressor(n_estimators = 1000, random_state = 42)
@@ -472,10 +478,11 @@ for index in range(len(bootstrapped_samples)):
     label = np.asarray(label, dtype='float64')
     label = label.reshape(len(label),1)
     meta_features = get_features(train_features, train_labels, test_features)  
+    # create a decision tree to select the best algorithm out of ppr, svr, gb and rf
+    # use meta features and label to create decision tree
     clf = DecisionTreeClassifier()
     dt.append(clf.fit(meta_features,label))
-    
-        
+ 
     '''
     # Random Noise
     noise = np.random.normal(0,1,(1030,9))
@@ -487,14 +494,18 @@ prediction = 0.0
 predicted_values = []
 pred_per_dt = []
 error = []
+predictions = []
+pred_pr_tree = []
 test_set = data_orig[int(0.9*len(data_orig)):,:]
-l = test_set[:,8]
-train_features, test_features, train_labels, test_labels = train_test_split(test_set, l, test_size = 0.25, random_state = 42)
+test_features = test_set[:,0:(test_set.shape[1]-1)]
+l = test_set[:,test_set.shape[1]-1]
+train_features, test_features, train_labels, test_labels = train_test_split(test_features, l, test_size = 0.25, random_state = 42)
 features = get_features(train_features, train_labels, test_features)
 print("number of decision trees", len(dt)) 
 # Outer loop loops over all the test set features
 for j in range(len(test_features)):
     print(j)
+    pred_pr_tree = []
     prediction = 0.0
     # Inner loop predicts the output for each decision tree and then averages all the outputs
     for i in range(len(dt)):
@@ -512,20 +523,24 @@ for j in range(len(test_features)):
              prediction += RandomForest(train_features, train_labels,test_features[j].reshape(1,-1))
         elif(predictor_label==3):
              prediction += GB(train_features, train_labels,test_features[j].reshape(1,-1))
-        #error.append(mean_squared_error(test_labels[0], prediction[0]))      
+        pred_pr_tree.append(predictor_label)
+        #error.append(mean_squared_error(test_labels[0], prediction[0]))   
+    predictions.append(pred_pr_tree)
     predicted_values.append(prediction/len(dt))           
    #pred_per_dt.append(sum(prediction)/len(prediction))
-mse = mean_squared_error(test_labels, predicted_values)
+mse = mean_squared_error(test_labels[:14], predicted_values)
 std = np.asarray(predicted_values).std()
 # Base Learners
-pred_ppr = PPR(train_features, train_labels,test_features)
-mse_ppr = mean_squared_error(test_labels, pred_ppr)
+pred_ppr = PPR(train_features, train_labels,test_features[:14])
+mse_ppr = mean_squared_error(test_labels[:14], pred_ppr[:14])
 pred_svr = get_SVR(train_features, train_labels,test_features)
-mse_ppr = mean_squared_error(test_labels, pred_svr)
+mse_svr = mean_squared_error(test_labels[:14], pred_svr[:14])
 pred_rf = RandomForest(train_features, train_labels,test_features)
-mse_ppr = mean_squared_error(test_labels, pred_rf)
-pred_gb = GB(train_features, train_labels,test_features)
-mse_ppr = mean_squared_error(test_labels, pred_gb)
-print("average error",mse)   
+mse_rf = mean_squared_error(test_labels[:14], pred_rf[:14])
+pred_gb = GB(train_features, train_labels,test_features[:14])
+mse_gb = mean_squared_error(test_labels[:14], pred_gb[:14])
+print("average error",mse) 
+# predictions variable contains the predicted labels for all the 100 bootstrapped
+# decision trees  for each test sample. mse_ variables are mean square errors.
  
         
