@@ -422,7 +422,7 @@ tree = build_tree(dataset, 1, 1)
 #################################################################################
 
 # Load the data. The below algorithm assumes that labels column should be the last one
-data_orig = pd.read_csv("S:/Job/Time Series analysis/Task3/puma32H.csv")
+data_orig = pd.read_csv("S:/Job/Time Series analysis/Task3/Concrete_Data_new.csv")
 # Implement boot strapping
 data_orig = data_orig.values
 data = data_orig[:int(0.9*len(data_orig)),:]
@@ -528,17 +528,17 @@ for j in range(len(test_features)):
     predictions.append(pred_pr_tree)
     predicted_values.append(prediction/len(dt))           
    #pred_per_dt.append(sum(prediction)/len(prediction))
-mse = mean_squared_error(test_labels[:14], predicted_values)
+mse = mean_squared_error(test_labels, predicted_values)
 std = np.asarray(predicted_values).std()
 # Base Learners
-pred_ppr = PPR(train_features, train_labels,test_features[:14])
-mse_ppr = mean_squared_error(test_labels[:14], pred_ppr[:14])
+pred_ppr = PPR(train_features, train_labels,test_features)
+mse_ppr = mean_squared_error(test_labels, pred_ppr)
 pred_svr = get_SVR(train_features, train_labels,test_features)
-mse_svr = mean_squared_error(test_labels[:14], pred_svr[:14])
+mse_svr = mean_squared_error(test_labels, pred_svr)
 pred_rf = RandomForest(train_features, train_labels,test_features)
-mse_rf = mean_squared_error(test_labels[:14], pred_rf[:14])
-pred_gb = GB(train_features, train_labels,test_features[:14])
-mse_gb = mean_squared_error(test_labels[:14], pred_gb[:14])
+mse_rf = mean_squared_error(test_labels, pred_rf)
+pred_gb = GB(train_features, train_labels,test_features)
+mse_gb = mean_squared_error(test_labels, pred_gb)
 print("average error",mse) 
 # predictions variable contains the predicted labels for all the 100 bootstrapped
 # decision trees  for each test sample. mse_ variables are mean square errors.
