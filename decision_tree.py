@@ -394,7 +394,7 @@ if __name__ == '__main__':
     mse = mean_squared_error(test_labels[:20], predicted_values[:20])
     std = np.asarray(predicted_values).std()
     # Base Learners
-    # We compare the predictions of metabags we created with the below base learners.
+    # We compare the predictions of metabags we created, with the below base learners.
     pred_ppr = PPR(train_features, train_labels,test_features[:20,:])
     mse_ppr = mean_squared_error(test_labels[:20], pred_ppr[:20])
     pred_svr = get_SVR(train_features, train_labels,test_features)
